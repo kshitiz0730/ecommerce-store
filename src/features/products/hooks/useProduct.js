@@ -2,37 +2,44 @@ import { useCallback, useEffect, useState } from "react";
 import { getProductById } from "../api/productsApi";
 
 export default function useProduct(id) {
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+  const requestKey = JSON.stringify([id, reloadKey]);
+  const [state, setState] = useState(() => ({
+    key: requestKey,
+    product: null,
+    loading: true,
+    error: "",
+  }));
 
   useEffect(() => {
     const controller = new AbortController();
-
     async function loadProduct() {
-      setLoading(true);
-      setError("");
-
       try {
-        const result = await getProductById(id, { signal: controller.signal });
-        setProduct(result);
+        const product = await getProductById(id, { signal: controller.signal });
+        setState({ key: requestKey, product, loading: false, error: "" });
       } catch (requestError) {
         if (!controller.signal.aborted) {
-          setError(requestError.message || "Unable to load this product.");
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
+          setState({
+            key: requestKey,
+            product: null,
+            loading: false,
+            error: requestError.message || "Unable to load this product.",
+          });
         }
       }
     }
 
     loadProduct();
     return () => controller.abort();
-  }, [id, reloadKey]);
+  }, [id, requestKey]);
 
   const retry = useCallback(() => setReloadKey((current) => current + 1), []);
+  const isCurrentRequest = state.key === requestKey;
 
-  return { product, loading, error, retry };
+  return {
+    product: isCurrentRequest ? state.product : null,
+    loading: !isCurrentRequest || state.loading,
+    error: isCurrentRequest ? state.error : "",
+    retry,
+  };
 }

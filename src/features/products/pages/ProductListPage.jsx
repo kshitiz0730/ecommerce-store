@@ -1,44 +1,33 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { PRODUCTS_PER_PAGE } from "../../../constants/products";
+import { LISTING_FILTER_KEYS } from "../../../constants/filters";
 import EmptyState from "../../../components/feedback/EmptyState";
 import ErrorState from "../../../components/feedback/ErrorState";
 import LoadingState from "../../../components/feedback/LoadingState";
 import ProductFilters from "../../filters/components/ProductFilters";
+import {
+  clearListingFilterParams,
+  setListingPageParam,
+  toggleBrandFilterParams,
+  updateScalarFilterParams,
+} from "../../filters/functions/listingFilterActions";
 import { readListingFilters } from "../../filters/utils/listingSearchParams";
 import Pagination from "../components/Pagination";
 import ProductGrid from "../components/ProductGrid";
 import useCategories from "../hooks/useCategories";
 import useProducts from "../hooks/useProducts";
 import { filterProducts, getUniqueBrands } from "../utils/filterProducts";
-
-const PRODUCTS_PER_PAGE = 8;
-
-function formatCategoryName(category) {
-  return category
-    .replaceAll("-", " ")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function normalizeCategory(category) {
-  if (typeof category === "string") {
-    return { slug: category, name: formatCategoryName(category) };
-  }
-
-  const slug = category.slug ?? category.name;
-  return {
-    slug,
-    name: category.name ?? formatCategoryName(slug),
-  };
-}
+import normalizeCategory from "../utils/normalizeCategory";
 
 export default function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const filters = useMemo(() => readListingFilters(searchParams), [searchParams]);
-  const needsClientFiltering =
+  const hasPriceOrBrandFilter =
     filters.minPrice !== "" ||
     filters.maxPrice !== "" ||
     filters.brands.length > 0;
+  const needsClientFiltering = hasPriceOrBrandFilter || Boolean(filters.category && filters.query);
   const category = filters.category || undefined;
 
   const {
@@ -48,6 +37,7 @@ export default function ProductListPage() {
     error: serverError,
     retry: retryServerProducts,
   } = useProducts(category, {
+    query: category || needsClientFiltering ? "" : filters.query,
     page: needsClientFiltering ? 1 : filters.page,
     limit: PRODUCTS_PER_PAGE,
     enabled: !needsClientFiltering,
@@ -66,7 +56,7 @@ export default function ProductListPage() {
   } = useCategories();
 
   const categories = useMemo(
-    () => categoriesResponse.map(normalizeCategory),
+    () => categoriesResponse.map(normalizeCategory).filter(Boolean),
     [categoriesResponse],
   );
   const brands = useMemo(() => getUniqueBrands(catalogProducts), [catalogProducts]);
@@ -86,63 +76,40 @@ export default function ProductListPage() {
     const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
     return filteredProducts.slice(startIndex, startIndex + PRODUCTS_PER_PAGE);
   }, [currentPage, filteredProducts, needsClientFiltering, serverProducts]);
+  const productsLoading = needsClientFiltering ? catalogLoading : serverLoading;
+  const productsError = needsClientFiltering ? catalogError : serverError;
+  const resultCount = needsClientFiltering ? filteredProducts.length : serverTotal;
+  const pageOutOfRange = filters.page > Math.max(pageCount, 1);
 
-  function updateScalarFilter(key, value) {
-    const nextParams = new URLSearchParams(searchParams);
-    const normalizedValue = value.trim();
-
-    if (normalizedValue) {
-      nextParams.set(key, normalizedValue);
-    } else {
-      nextParams.delete(key);
+  useEffect(() => {
+    if (productsLoading || !pageOutOfRange) {
+      return;
     }
 
-    nextParams.delete("page");
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(setListingPageParam(searchParams, currentPage), { replace: true });
+  }, [
+    currentPage,
+    pageOutOfRange,
+    productsLoading,
+    searchParams,
+    setSearchParams,
+  ]);
+
+  function updateScalarFilter(key, value) {
+    setSearchParams(updateScalarFilterParams(searchParams, key, value), { replace: true });
   }
 
   function handleBrandChange(brand) {
-    const nextParams = new URLSearchParams(searchParams);
-    const nextBrands = new Set(nextParams.getAll("brand"));
-
-    if (nextBrands.has(brand)) {
-      nextBrands.delete(brand);
-    } else {
-      nextBrands.add(brand);
-    }
-
-    nextParams.delete("brand");
-    nextBrands.forEach((selectedBrand) => nextParams.append("brand", selectedBrand));
-    nextParams.delete("page");
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(toggleBrandFilterParams(searchParams, brand), { replace: true });
   }
 
   function handlePageChange(nextPage) {
-    const nextParams = new URLSearchParams(searchParams);
-
-    if (nextPage <= 1) {
-      nextParams.delete("page");
-    } else {
-      nextParams.set("page", String(nextPage));
-    }
-
-    setSearchParams(nextParams);
+    setSearchParams(setListingPageParam(searchParams, nextPage));
   }
 
   function clearFilters() {
-    const nextParams = new URLSearchParams(searchParams);
-    ["category", "min", "max", "brand", "page"].forEach((key) => nextParams.delete(key));
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(clearListingFilterParams(searchParams), { replace: true });
   }
-
-  const productsLoading =
-    needsClientFiltering ? catalogLoading : serverLoading;
-  const productsError =
-    needsClientFiltering ? catalogError : serverError;
-  const retryProducts =
-    needsClientFiltering ? retryCatalog : retryServerProducts;
-  const resultCount =
-    needsClientFiltering ? filteredProducts.length : serverTotal;
 
   return (
     <section className="flex flex-col gap-8 lg:flex-row" aria-label="Product catalog">
@@ -159,18 +126,18 @@ export default function ProductListPage() {
         brandsLoading={catalogLoading}
         brandsError={catalogError}
         onRetryBrands={retryCatalog}
-        onCategoryChange={(value) => updateScalarFilter("category", value)}
-        onMinPriceChange={(value) => updateScalarFilter("min", value)}
-        onMaxPriceChange={(value) => updateScalarFilter("max", value)}
+        onCategoryChange={(value) => updateScalarFilter(LISTING_FILTER_KEYS.category, value)}
+        onMinPriceChange={(value) => updateScalarFilter(LISTING_FILTER_KEYS.minimumPrice, value)}
+        onMaxPriceChange={(value) => updateScalarFilter(LISTING_FILTER_KEYS.maximumPrice, value)}
         onBrandChange={handleBrandChange}
         onClear={clearFilters}
       />
 
       <div className="min-w-0 lg:flex-1">
-        {productsLoading ? (
+        {productsLoading || pageOutOfRange ? (
           <LoadingState />
         ) : productsError ? (
-          <ErrorState message={productsError} onRetry={retryProducts} />
+          <ErrorState message={productsError} onRetry={needsClientFiltering ? retryCatalog : retryServerProducts} />
         ) : resultCount === 0 ? (
           <EmptyState message="No products match the selected filters." />
         ) : (

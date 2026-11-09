@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --color-brand-navy: #0b2545;
   --animate-shimmer: shimmer 1.6s linear infinite;
 
   @keyframes shimmer {

@@ -1,14 +1,18 @@
+import { MAX_VISIBLE_PAGE_BUTTONS } from "../../../constants/pagination";
+
 export default function Pagination({ currentPage, pageCount, onPageChange }) {
   if (pageCount <= 1) {
     return null;
   }
 
-  const maxVisibleButtons = 5;
   const firstPage = Math.max(
     1,
-    Math.min(currentPage - Math.floor(maxVisibleButtons / 2), pageCount - maxVisibleButtons + 1),
+    Math.min(
+      currentPage - Math.floor(MAX_VISIBLE_PAGE_BUTTONS / 2),
+      pageCount - MAX_VISIBLE_PAGE_BUTTONS + 1,
+    ),
   );
-  const lastPage = Math.min(pageCount, firstPage + maxVisibleButtons - 1);
+  const lastPage = Math.min(pageCount, firstPage + MAX_VISIBLE_PAGE_BUTTONS - 1);
   const pageNumbers = Array.from(
     { length: lastPage - firstPage + 1 },
     (_, index) => firstPage + index,
@@ -21,6 +25,7 @@ export default function Pagination({ currentPage, pageCount, onPageChange }) {
         type="button"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
+        aria-label="Go to previous page"
       >
         <span className="sm:hidden">←</span>
         <span className="hidden sm:inline">← Previous</span>
@@ -49,6 +54,7 @@ export default function Pagination({ currentPage, pageCount, onPageChange }) {
         type="button"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === pageCount}
+        aria-label="Go to next page"
       >
         <span className="sm:hidden">→</span>
         <span className="hidden sm:inline">Next →</span>
@@ -56,4 +62,3 @@ export default function Pagination({ currentPage, pageCount, onPageChange }) {
     </nav>
   );
 }
-

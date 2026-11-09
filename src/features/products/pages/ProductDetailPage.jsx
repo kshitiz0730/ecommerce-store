@@ -3,15 +3,9 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import ErrorState from "../../../components/feedback/ErrorState";
 import LoadingState from "../../../components/feedback/LoadingState";
 import RatingStars from "../components/RatingStars";
+import formatCategory from "../utils/formatCategory";
 import formatCurrency from "../utils/formatCurrency";
 import useProduct from "../hooks/useProduct";
-
-function formatCategory(category = "") {
-  return category
-    .replaceAll("-", " ")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
 
 export default function ProductDetailPage() {
   const { id } = useParams();
@@ -19,7 +13,7 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState("");
   const { product, loading, error, retry } = useProduct(id);
   const galleryImages = product?.images?.length
-    ? product.images
+    ? [...new Set(product.images)]
     : product?.thumbnail
       ? [product.thumbnail]
       : [];
@@ -119,7 +113,7 @@ export default function ProductDetailPage() {
               {product.reviews?.length ? (
                 <ul className="mt-3 space-y-4">
                   {product.reviews.map((review, index) => (
-                    <li className="border-b border-neutral-200 pb-4 last:border-0" key={`${review.reviewerEmail || review.reviewerName}-${index}`}>
+                    <li className="border-b border-neutral-200 pb-4 last:border-0" key={`${review.reviewerEmail || review.reviewerName || "review"}-${index}`}>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="font-semibold">{review.reviewerName || "Customer"}</span>
                         <span

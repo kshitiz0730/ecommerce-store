@@ -120,7 +120,5 @@ Tailwind CSS is integrated through the Vite plugin. UI styling uses Tailwind uti
 
 ## Submission links
 
-- GitHub repository: _Add repository URL_
-- Demo: _Add deployed demo URL_
-
-
+- GitHub repository:
+- Demo:
