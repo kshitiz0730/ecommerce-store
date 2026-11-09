@@ -26,12 +26,23 @@ async function get(path, config = {}) {
   }
 }
 
-export async function getProducts({ category, signal } = {}) {
+export async function getProducts({
+  category,
+  limit = 8,
+  skip = 0,
+  signal,
+} = {}) {
   const path = category
     ? `/products/category/${encodeURIComponent(category)}`
     : "/products";
-  const data = await get(path, { params: { limit: 0 }, signal });
-  return data.products ?? [];
+  const data = await get(path, { params: { limit, skip }, signal });
+
+  return {
+    products: data.products ?? [],
+    total: data.total ?? 0,
+    skip: data.skip ?? skip,
+    limit: data.limit ?? limit,
+  };
 }
 
 export async function getCategories({ signal } = {}) {
