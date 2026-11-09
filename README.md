@@ -120,5 +120,5 @@ Tailwind CSS is integrated through the Vite plugin. UI styling uses Tailwind uti
 
 ## Submission links
 
-- GitHub repository:
-- Demo:
+- GitHub repository: https://github.com/kshitiz0730/ecommerce-store
+- Demo: https://ecommerce-store-inky-chi.vercel.app/
